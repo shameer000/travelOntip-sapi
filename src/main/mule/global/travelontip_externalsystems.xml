@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<flow name="travelontip_externalsystemsFlow" doc:id="5595e6d7-79ee-4033-9888-02a0be6186fb" >
+		<http:listener doc:name="Listener" doc:id="e4fe78ef-40bd-454c-a2c0-41fd61e13498" path="${http.listener.path}" config-ref="HTTP_Listener_config">
+			<http:response >
+				<http:body ><![CDATA[#[output application/json --- payload]]]></http:body>
+			</http:response>
+			<http:error-response statusCode="#[Vars.statuscode as Number]" >
+				<http:body ><![CDATA[#[vars.errorMsg default "Critical Error"]]]></http:body>
+			</http:error-response>
+		</http:listener>
+		<ee:transform doc:name="Transform Message" doc:id="1f8485af-7446-4ac7-994a-8dd37f4df0f7" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="serviceType" ><![CDATA[%dw 2.0
+output application/json
+--- 
+attributes.uriParams.serviceType]]></ee:set-variable>
+				<ee:set-variable variableName="transactionId" ><![CDATA[%dw 2.0
+output application/java
+---
+attributes.headers.transactionId]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="ae21f317-6aa8-4a52-b933-8e9dc493fd4e" message="Request Recieved for TravelOnTip External System For TransactionId: #[vars.transactionId]"/>
+		<choice doc:name="Choice" doc:id="88fa97d6-cd23-4bf7-b288-002cd12054d6" >
+			<when expression='#[vars.serviceType == "routes"]'>
+				<logger level="INFO" doc:name="Logger" doc:id="d12d0147-117b-4770-be61-e50f17dfda84" message="Routes Flow called for TravelOnTip External System For TransactionId: #[vars.transactionId]"/>
+				<flow-ref doc:name="Flow Reference" doc:id="ad5b3316-6edc-4fc5-b0f9-4e411a9d075b" name="TravelOnTip-GetRoutes-ImplementationSub_Flow"/>
+			</when>
+			<when expression='#[vars.serviceType == "schedules"]'>
+				<logger level="INFO" doc:name="Logger" doc:id="ffabad13-0adc-44bb-a2d4-4c90b4ac5877" message="Schedule Flow Called For  TravelOnTip External System For TransactionId: #[vars.transactionId]"/>
+				<flow-ref doc:name="Flow Reference" doc:id="8a14c4d0-b5ff-48fe-922e-7cdb511d2473" name="TravelOnTip-GetSchedule-ImplementationSub_Flow"/>
+			</when>
+			<otherwise>
+				<logger level="INFO" doc:name="Logger" doc:id="5d4f3ed0-94f0-4f11-936c-9a56ca12b4e0" message="URI Parameter is Not Correct For TravelOnTip External System For TransactionId: #[vars.transactionId]"/>
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="Logger" doc:id="d40a4583-aed2-4393-96d1-7b41f3546839" message="Response sent For TravelOnTip External System for TransactionId: #[attributes.headers.transactionId]" />
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="7c16e7d9-e7b2-4b44-bfa8-796864ee0ed8" >
+				<logger level="INFO" doc:name="Logger" doc:id="d19ab71f-23ce-441a-b195-b3c0e036dbcb" message="Error Occoured For TravelOnTip External System for  TransactionId:#[vars.transactionId]reason:#[error.errorMessage]error Type:#[error.errorType]"/>
+				<ee:transform doc:name="Transform Message" doc:id="de2b60e6-94ec-455f-99a1-ed2891791952">
+					<ee:message>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="errormsg"><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"ErrorMessage":"Error in TravelOnTrip System"
+}]]></ee:set-variable>
+						<ee:set-variable variableName="statuscode" ><![CDATA[%dw 2.0
+output application/json
+---
+500]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+</mule>
